@@ -1,12 +1,23 @@
 import pandas as pd
 from glob import glob
 import os
-import tkinter
-import csv
 import tkinter as tk
 from tkinter import *
 import time
 import datetime
+
+# Soft Pixel-Art Color Palette
+BG_COLOR = "#f5f5f5"  # Soft off-white
+TEXT_COLOR = "#333333"  # Dark gray (soft)
+ACCENT_1 = "#a8d8ea"  # Pastel blue
+ACCENT_2 = "#aa96da"  # Pastel purple
+ACCENT_3 = "#fcbad3"  # Pastel pink
+ERROR_COLOR = "#ff6b6b"  # Soft red
+
+# Fonts
+PIXEL_FONT = ("Courier New", 12)
+PIXEL_FONT_BOLD = ("Courier New", 12, "bold")
+TITLE_FONT = ("Courier New", 16, "bold")
 
 def subjectchoose(text_to_speech):
     def calculate_attendance():
@@ -15,155 +26,149 @@ def subjectchoose(text_to_speech):
             t = 'Please enter the subject name.'
             text_to_speech(t)
             return
+            
         subject_path = os.path.join("Attendance", Subject)
         filenames = glob(os.path.join(subject_path, f"{Subject}*.csv"))
         if not filenames:
             t = 'No attendance files found for the subject.'
             text_to_speech(t)
             return
+            
         df = [pd.read_csv(f) for f in filenames]
         newdf = df[0]
         for i in range(1, len(df)):
             newdf = newdf.merge(df[i], how="outer")
         newdf.fillna(0, inplace=True)
-        
-        # Ensure the "Attendance" column exists and is of string type
+
+        # Attendance calculation logic
         if "Attendance" not in newdf.columns:
             newdf["Attendance"] = ""
-        
+
+        numeric_columns = newdf.iloc[:, 2:].select_dtypes(include=["number"]).columns
         for i in range(len(newdf)):
-            newdf.loc[i, "Attendance"] = str(int(round(newdf.iloc[i, 2:-1].mean() * 100))) + '%'
-        
-        # Ensure the directory exists
+            if not numeric_columns.empty:
+                mean_value = newdf.loc[i, numeric_columns].mean()
+                newdf.loc[i, "Attendance"] = str(int(round(mean_value * 100))) + '%'
+            else:
+                newdf.loc[i, "Attendance"] = "0%"
+
+        # Reorder columns
+        columns = list(newdf.columns)
+        if "Attendance" in columns:
+            columns.remove("Attendance")
+            name_index = columns.index("Name") + 1
+            columns.insert(name_index, "Attendance")
+            newdf = newdf[columns]
+
+        # Save to CSV
         if not os.path.exists(subject_path):
             os.makedirs(subject_path)
-        
-        # Correct the file path construction
         ts = time.time()
         date = datetime.datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
         timeStamp = datetime.datetime.fromtimestamp(ts).strftime("%H-%M-%S")
         fileName = f"{Subject}_{date}_{timeStamp}.csv"
         filePath = os.path.join(subject_path, fileName)
-        
         newdf.to_csv(filePath, index=False)
 
-        root = tkinter.Tk()
-        root.title("Attendance of " + Subject)
-        root.geometry("1600x900")  # Increase window size
-        root.configure(background="white")  # Change background to white
+        # Display attendance table
+        for widget in content_frame.winfo_children():
+            widget.destroy()
 
-        # Add a canvas and scrollbars
-        canvas = Canvas(root, bg="white")
-        canvas.pack(side=LEFT, fill=BOTH, expand=True)
+        # Header
+        tk.Label(content_frame, 
+                text="Attendance Sheet", 
+                bg=BG_COLOR, 
+                fg=ACCENT_2, 
+                font=TITLE_FONT).grid(row=0, column=0, 
+                                    columnspan=len(newdf.columns), 
+                                    pady=10)
 
-        v_scrollbar = Scrollbar(root, orient=VERTICAL, command=canvas.yview, bg="black", troughcolor="black", activebackground="black")
-        v_scrollbar.pack(side=RIGHT, fill=Y)
+        # Column headers
+        for col_idx, col_name in enumerate(newdf.columns):
+            tk.Label(content_frame, 
+                    text=col_name, 
+                    bg=ACCENT_1, 
+                    fg="white", 
+                    font=PIXEL_FONT_BOLD, 
+                    width=15, 
+                    relief=FLAT).grid(row=1, 
+                                    column=col_idx, 
+                                    padx=2, 
+                                    pady=2)
 
-        h_scrollbar = Scrollbar(root, orient=HORIZONTAL, command=canvas.xview, bg="black", troughcolor="black", activebackground="black")
-        h_scrollbar.pack(side=BOTTOM, fill=X)
+        # Data rows
+        for row_idx, row in newdf.iterrows():
+            for col_idx, value in enumerate(row):
+                bg_color = BG_COLOR if row_idx % 2 == 0 else "#e8e8e8"
+                tk.Label(content_frame, 
+                        text=value, 
+                        bg=bg_color, 
+                        fg=TEXT_COLOR, 
+                        font=PIXEL_FONT, 
+                        width=15, 
+                        relief=FLAT).grid(row=row_idx + 2, 
+                                        column=col_idx, 
+                                        padx=2, 
+                                        pady=2)
 
-        canvas.configure(yscrollcommand=v_scrollbar.set, xscrollcommand=h_scrollbar.set)
-
-        content_frame = Frame(canvas, bg="white")  # Change background to white
-        canvas.create_window((0, 0), window=content_frame, anchor="nw")
-
-        def on_frame_configure(event):
-            canvas.configure(scrollregion=canvas.bbox("all"))
-
-        content_frame.bind("<Configure>", on_frame_configure)
-
-        with open(filePath) as file:
-            reader = csv.reader(file)
-            for r, col in enumerate(reader):
-                for c, row in enumerate(col):
-                    label = tkinter.Label(
-                        content_frame,
-                        width=20,  # Increase width for better visibility
-                        height=1,
-                        fg="black",  # Change text color to black for better visibility
-                        font=("Helvetica", 15, "bold"),
-                        bg="white",  # Change background to white
-                        text=row,
-                        relief=tkinter.RIDGE,
-                    )
-                    label.grid(row=r, column=c)
-        root.update()
-        print(newdf)
-
+    # Main window
     subject = Tk()
-    subject.title("Subject...")
-    subject.geometry("800x600")
-    subject.configure(background="black")
-    content_frame = Frame(subject, bg="black")
-    content_frame.place(relx=0.5, rely=0.5, anchor=CENTER)
-    titl = tk.Label(content_frame, bg="black", relief=RIDGE, bd=10, font=("Helvetica", 30))
-    titl.pack(fill=X)
-    titl = tk.Label(
-        content_frame,
-        text="Which Subject of Attendance?",
-        bg="black",
-        fg="white",
-        font=("Helvetica", 25),
-    )
-    titl.pack(pady=20)
+    subject.title("View Attendance • Attendify")
+    subject.geometry("900x600")
+    subject.configure(background=BG_COLOR)
+    subject.resizable(False, False)
 
-    def Attf():
-        sub = tx.get()
-        if sub == "":
-            t = "Please enter the subject name!!!"
-            text_to_speech(t)
-        else:
-            os.startfile(f"Attendance\\{sub}")
+    # Content frame with scrollbar
+    main_frame = Frame(subject, bg=BG_COLOR)
+    main_frame.pack(pady=20, padx=20, fill=BOTH, expand=True)
 
-    attf = tk.Button(
-        content_frame,
-        text="Check Sheets",
-        command=Attf,
-        bd=7,
-        font=("Helvetica", 15),
-        bg="black",
-        fg="white",
-        height=2,
-        width=10,
-        relief=RIDGE,
-    )
-    attf.pack(pady=10)
+    # Input frame
+    input_frame = Frame(main_frame, bg=BG_COLOR)
+    input_frame.pack(fill=X)
 
-    sub = tk.Label(
-        content_frame,
-        text="Enter Subject",
-        width=10,
-        height=2,
-        bg="black",
-        fg="white",
-        bd=5,
-        relief=RIDGE,
-        font=("Helvetica", 15),
-    )
-    sub.pack(pady=10)
+    tk.Label(input_frame, 
+            text="Enter Subject Name:", 
+            bg=BG_COLOR, 
+            fg=TEXT_COLOR, 
+            font=PIXEL_FONT).pack(side=LEFT, padx=5)
+            
+    tx = tk.Entry(input_frame, 
+                width=25, 
+                font=PIXEL_FONT, 
+                bg="white", 
+                fg=TEXT_COLOR, 
+                relief=FLAT)
+    tx.pack(side=LEFT, padx=5)
 
-    tx = tk.Entry(
-        content_frame,
-        width=15,
-        bd=5,
-        bg="black",
-        fg="white",
-        relief=RIDGE,
-        font=("Helvetica", 30, "bold"),
-    )
-    tx.pack(pady=10)
+    tk.Button(input_frame, 
+             text="View Attendance", 
+             command=calculate_attendance, 
+             bg=ACCENT_2, 
+             fg="white", 
+             font=PIXEL_FONT_BOLD, 
+             relief=FLAT).pack(side=LEFT, padx=10)
 
-    fill_a = tk.Button(
-        content_frame,
-        text="View Attendance",
-        command=calculate_attendance,
-        bd=7,
-        font=("Helvetica", 15),
-        bg="black",
-        fg="white",
-        height=2,
-        width=12,
-        relief=RIDGE,
+    # Table frame with scrollbar
+    table_frame = Frame(main_frame, bg=BG_COLOR)
+    table_frame.pack(fill=BOTH, expand=True)
+
+    canvas = Canvas(table_frame, bg=BG_COLOR)
+    scrollbar = Scrollbar(table_frame, orient="vertical", command=canvas.yview)
+    scrollable_frame = Frame(canvas, bg=BG_COLOR)
+
+    scrollable_frame.bind(
+        "<Configure>",
+        lambda e: canvas.configure(
+            scrollregion=canvas.bbox("all")
+        )
     )
-    fill_a.pack(pady=10)
+
+    canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+    canvas.configure(yscrollcommand=scrollbar.set)
+
+    canvas.pack(side="left", fill="both", expand=True)
+    scrollbar.pack(side="right", fill="y")
+
+    content_frame = scrollable_frame
+
     subject.mainloop()
