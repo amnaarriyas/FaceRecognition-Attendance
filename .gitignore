@@ -2,6 +2,7 @@ dataset/
 traininglabel/
 TrainingImageLabel/
 Attendance/
+StudentDetails/
 # Byte-compiled / optimized / DLL files
 __pycache__/*
 *.py[cod]
