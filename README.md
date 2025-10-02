@@ -7,18 +7,7 @@ A Python-based system that automates attendance tracking using facial recognitio
 - [System Architecture / Workflow](#system-architecture--workflow)
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
-- [Usage](#usage)
-  - [1. Collect Images](#1-collect-images)
-  - [2. Train Model](#2-train-model)
-  - [3. Mark Attendance](#3-mark-attendance)
-  - [4. View Attendance](#4-view-attendance)
-  - [Manual Mode](#manual-mode)
-  - [Testing](#testing)
-- [File Structure](#file-structure)
-- [Configuration / Customization](#configuration--customization)
-- [Limitations & Future Improvements](#limitations--future-improvements)
-- [Credits / Acknowledgments](#credits--acknowledgments)
-- [License](#license)
+
 
 ## Features
 - Real-time face detection using Haar cascades
@@ -54,3 +43,4 @@ venv\Scripts\activate      # Windows
 
 # 3. Install dependencies
 pip install -r requirements.txt
+
